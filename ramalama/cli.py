@@ -3,6 +3,7 @@ import errno
 import glob
 import json
 import os
+import pathlib
 import shlex
 import subprocess
 import sys
@@ -42,13 +43,13 @@ class ParsedGenerateInput:
         self.gen_type = gen_type
         self.output_dir = output_dir
 
-    def __str__(self):
+    def __str__(self) -> str:
         return self.gen_type
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return self.__str__()
 
-    def __eq__(self, value):
+    def __eq__(self, value) -> bool:
         return self.gen_type == value
 
 
@@ -81,18 +82,18 @@ def local_models(prefix, parsed_args, **kwargs):
     return [model['name'] for model in engine.list_models(parsed_args)]
 
 
-def local_containers(prefix, parsed_args, **kwargs):
+def local_containers(prefix: str, parsed_args, **kwargs):
     parsed_args.format = '{{.Names}}'
     return engine.containers(parsed_args)
 
 
-def local_images(prefix, parsed_args, **kwargs):
+def local_images(prefix: str, parsed_args, **kwargs):
     parsed_args.format = "{{.Repository}}:{{.Tag}}"
     return engine.images(parsed_args)
 
 
 class ArgumentParserWithDefaults(argparse.ArgumentParser):
-    def add_argument(self, *args, help=None, default=None, completer=None, **kwargs):
+    def add_argument(self, *args, help: str | None = None, default: str | None = None, completer: str | None = None, **kwargs) -> argparse.Action:
         if help is not None:
             kwargs['help'] = help
         if default is not None and args[0] != '-h':
@@ -115,7 +116,7 @@ def init_cli():
     return parser, args
 
 
-def get_description():
+def get_description() -> str:
     """Return the description of the RamaLama tool."""
     return """\
 RamaLama tool facilitates local management and serving of AI Models.
@@ -137,7 +138,7 @@ with software on the local system.
 """
 
 
-def create_argument_parser(description):
+def create_argument_parser(description: str) -> ArgumentParserWithDefaults:
     """Create and configure the argument parser for the CLI."""
     parser = ArgumentParserWithDefaults(
         prog="ramalama",
@@ -148,7 +149,7 @@ def create_argument_parser(description):
     return parser
 
 
-def configure_arguments(parser):
+def configure_arguments(parser: ArgumentParserWithDefaults) -> None:
     """Configure the command-line arguments for the parser."""
     verbosity_group = parser.add_mutually_exclusive_group()
     parser.add_argument(
@@ -222,9 +223,9 @@ The RAMALAMA_IN_CONTAINER environment variable modifies default behaviour.""",
     )
 
 
-def configure_subcommands(parser):
+def configure_subcommands(parser: ArgumentParserWithDefaults):
     """Add subcommand parsers to the main argument parser."""
-    subparsers = parser.add_subparsers(dest="subcommand")
+    subparsers: argparse.Action = parser.add_subparsers(dest="subcommand")
     subparsers.required = False
     bench_parser(subparsers)
     client_parser(subparsers)
@@ -398,14 +399,14 @@ def add_network_argument(parser, dflt="none"):
         )
 
 
-def bench_parser(subparsers):
+def bench_parser(subparsers) -> None:
     parser = subparsers.add_parser("bench", aliases=["benchmark"], help="benchmark specified AI Model")
     runtime_options(parser, "bench")
     parser.add_argument("MODEL", completer=local_models)  # positional argument
     parser.set_defaults(func=bench_cli)
 
 
-def containers_parser(subparsers):
+def containers_parser(subparsers) -> None:
     parser = subparsers.add_parser("containers", aliases=["ps"], help="list all RamaLama containers")
     parser.add_argument(
         "--format", help="pretty-print containers to JSON or using a Go template", completer=suppressCompleter
@@ -415,26 +416,26 @@ def containers_parser(subparsers):
     parser.set_defaults(func=list_containers)
 
 
-def list_containers(args):
+def list_containers(args) -> None:
     containers = engine.containers(args)
     if len(containers) == 0:
         return
     print("\n".join(containers))
 
 
-def info_parser(subparsers):
+def info_parser(subparsers) -> None:
     parser = subparsers.add_parser("info", help="display information pertaining to setup of RamaLama.")
     parser.set_defaults(func=info_cli)
 
 
-def list_parser(subparsers):
+def list_parser(subparsers) -> None:
     parser = subparsers.add_parser("list", aliases=["ls"], help="list all downloaded AI Models")
     parser.add_argument("--json", dest="json", action="store_true", help="print using json")
     parser.add_argument("-n", "--noheading", dest="noheading", action="store_true", help="do not display heading")
     parser.set_defaults(func=list_cli)
 
 
-def human_readable_size(size):
+def human_readable_size(size: int) -> str:
     for unit in ["B", "KB", "MB", "GB", "TB"]:
         if size < 1024:
             size = round(size, 2)
@@ -445,7 +446,7 @@ def human_readable_size(size):
     return f"{size} PB"
 
 
-def get_size(path):
+def get_size(path: str | pathlib.Path) -> int:
     if os.path.isdir(path):
         size = 0
         for dirpath, _, filenames in os.walk(path, followlinks=True):
@@ -564,17 +565,17 @@ def list_cli(args):
             print(f"{model['name']:<{name_width}} {modified:<{modified_width}} {model['size'].upper():<{size_width}}")
 
 
-def help_parser(subparsers):
+def help_parser(subparsers) -> None:
     parser = subparsers.add_parser("help")
     # Do not run in a container
     parser.set_defaults(func=help_cli)
 
 
-def help_cli(args):
+def help_cli(args) -> None:
     raise HelpException()
 
 
-def pull_parser(subparsers):
+def pull_parser(subparsers) -> None:
     parser = subparsers.add_parser("pull", help="pull AI Model from Model registry to local storage")
     parser.add_argument("--authfile", help="path of the authentication file")
     parser.add_argument(
@@ -587,7 +588,7 @@ def pull_parser(subparsers):
     parser.set_defaults(func=pull_cli)
 
 
-def pull_cli(args):
+def pull_cli(args) -> None:
     model = New(args.MODEL, args)
     matching_files = glob.glob(f"{args.store}/models/*/{model}")
     if matching_files:
@@ -596,7 +597,7 @@ def pull_cli(args):
     return model.pull(args)
 
 
-def convert_parser(subparsers):
+def convert_parser(subparsers) -> None:
     parser = subparsers.add_parser(
         "convert",
         help="convert AI Model from local storage to OCI Image",
@@ -641,7 +642,7 @@ Model "raw" contains the model and a link file model.file to it stored at /.""",
     parser.set_defaults(func=convert_cli)
 
 
-def convert_cli(args):
+def convert_cli(args) -> None:
     if not args.container:
         raise ValueError("convert command cannot be run with the --nocontainer option.")
 
@@ -656,7 +657,7 @@ def convert_cli(args):
     model.convert(source_model, args)
 
 
-def push_parser(subparsers):
+def push_parser(subparsers) -> None:
     parser = subparsers.add_parser(
         "push",
         help="push AI Model from local storage to remote registry",
@@ -690,7 +691,7 @@ Model "raw" contains the model and a link file model.file to it stored at /.""",
     parser.set_defaults(func=push_cli)
 
 
-def _get_source_model(args):
+def _get_source_model(args) -> None:
     src = shortnames.resolve(args.SOURCE)
     if not src:
         src = args.SOURCE
@@ -702,7 +703,7 @@ def _get_source_model(args):
     return smodel
 
 
-def push_cli(args):
+def push_cli(args) -> None:
     source_model = _get_source_model(args)
     target = args.SOURCE
     if args.TARGET:
@@ -727,7 +728,7 @@ def push_cli(args):
             raise e
 
 
-def runtime_options(parser, command):
+def runtime_options(parser, command: str) -> None:
     parser.add_argument("--authfile", help="path of the authentication file")
     if command in ["run", "perplexity", "serve"]:
         parser.add_argument(
@@ -1155,3 +1156,6 @@ def main():
         eprint(e, errno.EINVAL)
     except IOError as e:
         eprint(e, errno.EIO)
+
+
+main()

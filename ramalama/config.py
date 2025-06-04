@@ -5,8 +5,31 @@ from typing import Any, Dict
 
 from ramalama.common import container_manager, default_image
 from ramalama.toml_parser import TOMLParser
+from typing import Literal
+from dataclasses import dataclass, field
+
+# TODO
+ENGINE_TYPES = Literal["docker", "podman"]
+TRANSPORT_TYPES = Literal["huggingface", "oci", "ollama", "file", "http", "https"]
+STORE_TYPES = Literal['']
+
 
 DEFAULT_PORT_RANGE = (8080, 8090)
+DEFAULT_IMAGES = {
+    "ASAHI_VISIBLE_DEVICES": "quay.io/ramalama/asahi",
+    "ASCEND_VISIBLE_DEVICES": "quay.io/ramalama/cann",
+    "CUDA_VISIBLE_DEVICES": "quay.io/ramalama/cuda",
+    "HIP_VISIBLE_DEVICES": "quay.io/ramalama/rocm",
+    "INTEL_VISIBLE_DEVICES": "quay.io/ramalama/intel-gpu",
+}
+
+def use_container() -> bool:
+    use_container = os.getenv("RAMALAMA_IN_CONTAINER")
+    if use_container:
+        return use_container.lower() == "true"
+
+    conman = container_manager()
+    return conman is not None
 
 
 def get_store():
@@ -16,13 +39,31 @@ def get_store():
     return os.path.expanduser("~/.local/share/ramalama")
 
 
-def use_container():
-    use_container = os.getenv("RAMALAMA_IN_CONTAINER")
-    if use_container:
-        return use_container.lower() == "true"
+def int_tuple_as_str(inp: tuple[int]) -> str:
+    return '-'.join(map(str, inp))
 
-    conman = container_manager()
-    return conman is not None
+
+@dataclass
+class ConfigType:
+    store: STORE_TYPES = get_store()
+    engine: ENGINE_TYPES = "podman"
+    transport: TRANSPORT_TYPES = "ollama"
+    container: bool = use_container()
+    nocontainer: bool = False
+    use_model_store: bool = True
+    carimage: str = "registry.access.redhat.com/ubi9-micro:latest"
+    ctx_size: int = 2048
+    temp: str = "0.8"
+    env: list = []
+    host: str = "0.0.0.0"
+    port: str = int_tuple_as_str(DEFAULT_PORT_RANGE))
+    image: str = default_image()
+    images: dict = DEFAULT_IMAGES
+    keep_groups: bool = False
+    ngl: int = -1
+    threads: int = -1
+    pull: str = "newer"
+    runtime: str = "llama.cpp"
 
 
 def load_config() -> Dict[str, Any]:
@@ -68,9 +109,6 @@ def load_config_from_env(config: Dict[str, Any], env: Dict):
             config[k] = value
 
 
-def int_tuple_as_str(input: tuple) -> str:
-    return '-'.join(map(str, input))
-
 
 def load_config_defaults(config: Dict[str, Any]):
     """Set configuration defaults if these are not yet set."""
@@ -106,6 +144,7 @@ def load_config_defaults(config: Dict[str, Any]):
 
 class Config(ChainMap):
     def __init__(self, from_env, from_file, default):
+        breakpoint()
         super().__init__(from_env, from_file, default)
 
     @property

@@ -16,10 +16,12 @@ import sysconfig
 import time
 import urllib.error
 from typing import List
-
+import dataclasses
+from ramalama.config import ENGINE_TYPES
 import ramalama.console as console
 from ramalama.http_client import HttpClient
 from ramalama.version import version
+from typing import Literal
 
 logging.basicConfig(level=logging.WARNING, format="%(asctime)s - %(levelname)s - %(message)s")
 
@@ -36,13 +38,12 @@ HTTP_RANGE_NOT_SATISFIABLE = 416  # "Range Not Satisfiable" error (file already 
 
 DEFAULT_IMAGE = "quay.io/ramalama/ramalama"
 
-
-_engine = -1  # -1 means cached variable not set yet
+_engine: Literal[-1] | ENGINE_TYPES = -1  # -1 means cached variable not set yet
 _nvidia = -1  # -1 means cached variable not set yet
 podman_machine_accel = False
 
 
-def get_engine():
+def get_engine() -> ENGINE_TYPES | None:
     engine = os.getenv("RAMALAMA_CONTAINER_ENGINE")
     if engine is not None:
         if os.path.basename(engine) == "podman" and sys.platform == "darwin":
@@ -62,7 +63,7 @@ def get_engine():
     return None
 
 
-def container_manager():
+def container_manager() -> ENGINE_TYPES | None:
     global _engine
     if _engine != -1:
         return _engine
@@ -72,7 +73,7 @@ def container_manager():
     return _engine
 
 
-def confirm_no_gpu(name, provider):
+def confirm_no_gpu(name: str, provider: str) -> bool:
     while True:
         user_input = (
             input(
@@ -106,7 +107,7 @@ def handle_provider(machine):
     return None
 
 
-def apple_vm(engine):
+def apple_vm(engine: ENGINE_TYPES):
     podman_machine_list = [engine, "machine", "list", "--format", "json", "--all-providers"]
     try:
         machines_json = run_cmd(podman_machine_list, ignore_stderr=True).stdout.decode("utf-8").strip()
